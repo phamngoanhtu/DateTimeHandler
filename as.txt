@@ -1,0 +1,40 @@
+def draw_tracking_result(value):
+    frame_id = value.get("frame_id")
+    print(frame_id)
+    bbs = value.get("bbox")
+
+    for i in range(len(value.get("bbox"))):
+
+        # Coordinate of boundary Box
+        x1y1 = value["bbox"][i][:2]
+        x2y2 = value["bbox"][i][2:]
+
+        # Coordinate of text object_Class & track_id
+        x1 = x1y1[0]
+        y1 = x1y1[0]
+        x2 = x2y2[0]
+        y2 = x2y2[0]
+        x0 = min(x1, x2)
+        y0 = min(y1, y2)
+        x0y0 = [x0, y0 - 3]
+
+        object_class = value["class"][i]
+
+        track_id = value["track_id"][i]
+
+        img_path = "./{}_{:05d}.jpg".format("cam_02", frame_id)
+
+        img = cv2.imread(img_path)
+
+        if object_class == 0:
+            image = cv2.rectangle(img, x1y1, x2y2, [255, 0, 0], 1)
+        elif object_class == 1:
+            image = cv2.rectangle(img, x1y1, x2y2, [255, 255, 0], 1)
+        elif object_class == 2:
+            image = cv2.rectangle(img, x1y1, x2y2, [255, 0, 255], 1)
+        elif object_class == 3:
+            image = cv2.rectangle(img, x1y1, x2y2, [0, 0, 0], 1)
+
+        txt = "class:" + str(object_class) + "_trackID:" + str(track_id)
+        image = cv2.putText(image, txt, x0y0, cv2.FONT_HERSHEY_SIMPLEX, 0.35, [255,255,255], 1, cv2.LINE_AA)
+        cv2.imwrite(img_path, image)
