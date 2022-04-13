@@ -1,47 +1,95 @@
-def draw_tracking_result(value):
-    print("Start Drawing")
-    frame_id = value.get("frame_id")
-    bbs = value.get("bbox")
+class Draw:
+    def __init__(self):
+        self.history_movement_dict = {}
+        # Store all center point of boundary box and then draw a poly line to connect them
+        self.value = {}
 
-    img_path = "/home/{}_{:05d}.jpg".format("cam_02", frame_id)
-    des_img_path = "/home/{}_{:05d}.jpg".format("cam_02", frame_id)
+    def draw_tracking_result(self):
+        print("Start Drawing")
+        frame_id = self.value.get("frame_id")
+        bbs = self.value.get("bbox")
 
-    img = cv2.imread(img_path)
-    for i in range(len(value.get("bbox"))):
-        # Coordinate of boundary Box
-        x1y1 = tuple(value["bbox"][i][:2])
-        x2y2 = tuple(value["bbox"][i][2:])
+        img_path = "./{}_{:05d}.jpg".format("cam_02", frame_id)
+        des_img_path = "./{}_{:05d}.jpg".format("cam_02", frame_id)
 
-        # Coordinate of text object_Class & track_id
+        img = cv2.imread(img_path)
+        for i in range(len(bbs)):
+            # Coordinate of boundary Box
+            x1y1 = self.value["bbox"][i][:2]
+            x2y2 = self.value["bbox"][i][2:]
+
+            # Coordinate of center
+            xmym = self.__get_center_point(x1y1, x2y2)
+            self.__store_history_movement(i, xmym)
+
+            # Coordinate of text object_Class & track_id
+            x0y0 = self.__get_text_cor(x1y1, x2y2)
+
+            # Get name for Class and Track_id
+            object_class = self.value["class"][i]
+            track_id = self.value["track_id"][i]
+
+            # Draw different color rectangles for different classes
+            image = self.draw_boundary_box(img, x1y1, x2y2, object_class)
+
+            txt = "class:" + str(object_class) + "_trackID:" + str(track_id)
+            try:
+                image = cv2.putText(image, txt, tuple(x0y0), cv2.FONT_HERSHEY_SIMPLEX,
+                                    0.35, [255, 255, 255], 1, cv2.LINE_AA)
+            except Exception as e:
+                print("Ve Text", e)
+            image = self.draw_track_movement(img, object_class, track_id)
+            cv2.imwrite(des_img_path, image)
+
+    @staticmethod
+    def draw_boundary_box(img, x1y1, x2y2, object_class):
+        try:
+            if object_class == 0:
+                image = cv2.rectangle(img, tuple(x1y1), tuple(x2y2), [255, 0, 0], 1)
+            elif object_class == 1:
+                image = cv2.rectangle(img, tuple(x1y1), tuple(x2y2), [255, 255, 0], 1)
+            elif object_class == 2:
+                image = cv2.rectangle(img, tuple(x1y1), tuple(x2y2), [255, 0, 255], 1)
+            elif object_class == 3:
+                image = cv2.rectangle(img, tuple(x1y1), tuple(x2y2), [0, 0, 0], 1)
+            elif object_class == 4:
+                image = cv2.rectangle(img, tuple(x1y1), tuple(x2y2), [0, 0, 255], 1)
+            return image
+
+        except Exception as e:
+            print("Ve Class", e)
+
+    def draw_track_movement(self, img, object_class, track_id):
+        print ("len", len(self.history_movement_dict[track_id]))
+        if len(self.history_movement_dict[track_id]) >= 2:
+            pts = np.array(self.history_movement_dict.get(track_id))
+            image = cv2.polylines(img, [pts],
+                                  isClosed=False, color=[255, 255, 255], thickness=3)
+            return image
+        else:
+            return img
+        
+    def __store_history_movement(self, i, center):
+        track_id = self.value.get("track_id")[i]
+        if track_id not in self.history_movement_dict:
+            self.history_movement_dict[track_id] = [center]
+        else:
+            self.history_movement_dict[track_id].append(center)
+
+    @staticmethod
+    def __get_center_point(bb1, bb2):
+        xm = abs(bb1[0] - bb2[0]) / 2
+        x = xm + min(bb1[0], bb2[0])
+        ym = abs(bb1[1] - bb2[1]) / 2
+        y = ym + min(bb1[1], bb2[1])
+        return [int(x), int(y)]
+
+    @staticmethod
+    def __get_text_cor(x1y1, x2y2):
         x1 = x1y1[0]
         y1 = x1y1[1]
         x2 = x2y2[0]
         y2 = x2y2[1]
         x0 = min(x1, x2)
         y0 = min(y1, y2)
-        x0y0 = [x0, y0 - 3]
-
-        object_class = value["class"][i]
-
-        track_id = value["track_id"][i]
-        # Draw different color retangles for different classes
-        try:
-            if object_class == 0:
-                image = cv2.rectangle(img, x1y1, x2y2, [255, 0, 0], 1)
-            elif object_class == 1:
-                image = cv2.rectangle(img, x1y1, x2y2, [255, 255, 0], 1)
-            elif object_class == 2:
-                image = cv2.rectangle(img, x1y1, x2y2, [255, 0, 255], 1)
-            elif object_class == 3:
-                image = cv2.rectangle(img, x1y1, x2y2, [0, 0, 0], 1)
-            elif object_class == 4:
-                image = cv2.rectangle(img, x1y1, x2y2, [0, 0, 255], 1)
-        except Exception as e: 
-            print("Ve Class",e)
-
-        txt = "class:" + str(object_class) + "_trackID:" + str(track_id)
-        try:
-            image = cv2.putText(image, txt, tuple(x0y0), cv2.FONT_HERSHEY_SIMPLEX, 0.35, [255,255,255], 1, cv2.LINE_AA)
-        except Exception as e:
-            print("Ve Text",e)
-        cv2.imwrite(des_img_path, image)
+        return [x0, y0 - 3]
